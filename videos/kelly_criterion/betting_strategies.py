@@ -8,8 +8,9 @@ from scipy.stats import binom
 class BaseGame(ABC):
 
     """
-    Betting base class to demonstrate the Kelly Criteria. Subclassing this class allows you
-    to explore different bettering strategies.
+    Betting base class to demonstrate the Kelly Criteria. Subclassing this class allows you to explore different
+    bettering strategies. Subclasses override the _strategy method to implement whatever strategy they are intended to
+    execute.
     """
 
     def __init__(
