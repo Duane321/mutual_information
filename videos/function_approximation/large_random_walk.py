@@ -55,10 +55,6 @@ class LargeRandomWalk:
         # Initialize value coefficients
         self.w = np.zeros(self.num_buckets)
 
-        # Create the data directory if it doesn't already exist.
-        if not os.path.exists("data"):
-            os.mkdir("data")
-
     def bucket_states(self, states_micro: np.array):
         return (states_micro - 1) // self.bucket_size
 
