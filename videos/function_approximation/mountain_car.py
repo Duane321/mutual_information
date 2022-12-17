@@ -66,7 +66,7 @@ class MountainCar:
         """Initializes the weights and reset results"""
         self.w = np.zeros((self.protos_per_dim**2, len(self.actions)))
         self.results = None
-        self.cost_to_go = None
+        self.est_time_left = None
 
     def get_proto_points(self) -> np.ndarray:
         """
@@ -135,7 +135,6 @@ class MountainCar:
                 vel, pos, r = self.next_reward_state(vel, pos, a)
                 states.append((vel, pos))
                 rewards.append(r)
-
                 if self.terminal_condition(vel, pos, r):  # terminal
                     T = t + 1
                     actions.append(
@@ -170,7 +169,7 @@ class MountainCar:
             df = pd.DataFrame(states, columns=["vel", "pos"]).assign(episode=i)
             results.append(df)
         self.results = pd.concat(results, axis=0)
-        self.cost_to_go = self.get_cost_to_go()
+        self.est_time_left = self.get_est_time_left()
         return self.results
 
     def get_vel_pos_plot_vecs(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -179,7 +178,7 @@ class MountainCar:
         pos_vec = np.linspace(*self.pos_min_max, self.n_plot_points)
         return vel_vec, pos_vec
 
-    def get_cost_to_go(self) -> pd.DataFrame:
+    def get_est_time_left(self) -> pd.DataFrame:
         """Returns a DataFrame with the cost to go for each state. The cost to go is the negative of the
         max-action-value function. That is, it's the estimated 'cost' of the move to be made."""
         vel_vec, pos_vec = self.get_vel_pos_plot_vecs()
@@ -190,7 +189,7 @@ class MountainCar:
             .assign(pos2=lambda df: df["pos"] - pos_diff)
             .assign(vel2=lambda df: df["vel"] - vel_diff)
         )
-        df["cost_to_go"] = df.apply(
+        df["est_time_left"] = df.apply(
             lambda row: -max([self.q(row.vel, row.pos, a) for a in self.actions]),
             axis=1,
         )
@@ -219,9 +218,9 @@ class MountainCar:
             .properties(width=width, height=height, title=f"Episode {episode}")
         )
 
-    def plot_cost_to_go(self, episode_trail_plot: int) -> alt.Chart:
+    def plot_est_time_left(self, episode_trail_plot: int) -> alt.Chart:
         """
-        Plots the cost to go (the negative of the max action value) for each state in the state space.
+        Plots the estimated time left (the max-action value) for each state in the state space.
 
         Parameters
         ----------
@@ -229,9 +228,13 @@ class MountainCar:
         last episode is plotted.
 
         """
-        assert self.cost_to_go is not None, "Must run the TD algorithm first."
+        assert self.est_time_left is not None, "Must run the TD algorithm first."
         chart = (
-            alt.Chart(self.cost_to_go)
+            alt.Chart(
+                self.est_time_left.assign(
+                    est_time_left=lambda df: df["est_time_left"].clip(lower=0.1)
+                )
+            )
             .mark_rect(shape="square", color="None")
             .encode(
                 y=alt.Y(
@@ -251,12 +254,12 @@ class MountainCar:
                 ),
                 x2="pos2",
                 fill=alt.Color(
-                    "cost_to_go",
-                    title="Cost to Go",
-                    scale=alt.Scale(scheme="darkmulti"),
+                    "est_time_left",
+                    title="Estimated Time Left",
+                    scale=alt.Scale(scheme="darkmulti", domain=[0, 150], clamp=True),
                 ),
             )
-            .properties(width=500, height=500, title="Cost to Go")
+            .properties(width=500, height=500, title="Estimated Steps Left")
         )
         if episode_trail_plot is not None:
             if episode_trail_plot == -1:
